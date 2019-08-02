@@ -24,6 +24,10 @@ type repositoryMock struct {
 	getArgument *node.ID
 	getReturn   *data.NickData
 	getErr      error
+
+	getByNickArgument *string
+	getByNickReturn   *data.NickData
+	getByNickErr      error
 }
 
 func (r *repositoryMock) List() ([]data.NickData, error) {
@@ -38,6 +42,11 @@ func (r *repositoryMock) Put(nickData *data.NickData) error {
 func (r *repositoryMock) Get(nodeId node.ID) (*data.NickData, error) {
 	r.getArgument = &nodeId
 	return r.getReturn, r.getErr
+}
+
+func (r *repositoryMock) GetByNick(nick string) (*data.NickData, error) {
+	r.getByNickArgument = &nick
+	return r.getByNickReturn, r.getByNickErr
 }
 
 func makeComponents(t *testing.T) (*repositoryMock, http.Handler, *httptest.ResponseRecorder) {

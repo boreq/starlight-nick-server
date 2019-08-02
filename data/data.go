@@ -103,6 +103,7 @@ var InvalidNickDataErr = errors.New("invalid nick data")
 var NewerNickDataPresentErr = errors.New("newer nick data is available")
 var NickConflictErr = errors.New("nick is already taken")
 var InvalidNodeIdErr = errors.New("invalid node id")
+var InvalidNickErr = errors.New("invalid nick")
 
 const nickDataBucket = "nickdata"
 const nicksBucket = "nicks"
@@ -166,6 +167,34 @@ func (r *BoltRepository) Get(id node.ID) (*NickData, error) {
 
 	var nickData *NickData = nil
 	if err := r.db.View(func(tx *bolt.Tx) error {
+		nd, err := r.getNickData(tx, id)
+		if err != nil {
+			return err
+		}
+		nickData = nd
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return nickData, nil
+}
+
+// GetByNick returns an entry for a specific node id. If the node id is invalid
+// InvalidNodeIdErr is returned. If the entry doesn't exist nil is returned
+// without an error.
+func (r *BoltRepository) GetByNick(nick string) (*NickData, error) {
+	if err := ValidateNick(nick); err != nil {
+		return nil, InvalidNickErr
+	}
+
+	var nickData *NickData = nil
+	if err := r.db.View(func(tx *bolt.Tx) error {
+		nicksB := tx.Bucket([]byte(nicksBucket))
+		id := nicksB.Get([]byte(nick))
+		if id == nil {
+			return nil
+		}
+
 		nd, err := r.getNickData(tx, id)
 		if err != nil {
 			return err

@@ -29,6 +29,10 @@ type Repository interface {
 	// Get returns previously stored nick data. If the data is missing nil
 	// is returned.
 	Get(node.ID) (*data.NickData, error)
+
+	// GetByNick returns previously stored nick data. If the data is
+	// missing nil is returned.
+	GetByNick(nick string) (*data.NickData, error)
 }
 
 func Serve(repository Repository, address string) error {
@@ -56,6 +60,7 @@ func newHandler(repository Repository) (http.Handler, error) {
 	router.GET("/nicks", api.Wrap(h.GetNicks))
 	router.PUT("/nicks", api.Wrap(h.PutNick))
 	router.GET("/nicks/:id", api.Wrap(h.GetNick))
+	router.GET("/ids/:nick", api.Wrap(h.GetId))
 	return router, nil
 }
 
@@ -78,6 +83,27 @@ func (h *handler) GetNick(r *http.Request, ps httprouter.Params) (interface{}, a
 		return nil, api.BadRequest.WithMessage("Invalid node ID.")
 	}
 	nickData, err := h.repository.Get(nodeId)
+	if err != nil {
+		if isClientError(err) {
+			return nil, api.BadRequest.WithMessage(err.Error())
+		} else {
+			log.Error("get nick failed", "err", err)
+			return nil, api.InternalServerError
+		}
+	}
+	if nickData == nil {
+		return nil, api.NotFound
+	}
+	return nickData, nil
+}
+
+func (h *handler) GetId(r *http.Request, ps httprouter.Params) (interface{}, api.Error) {
+	nick := getParamString(ps, "nick")
+	if err := data.ValidateNick(nick); err != nil {
+		return nil, api.BadRequest.WithMessage("Invalid nick.")
+	}
+
+	nickData, err := h.repository.GetByNick(nick)
 	if err != nil {
 		if isClientError(err) {
 			return nil, api.BadRequest.WithMessage(err.Error())
